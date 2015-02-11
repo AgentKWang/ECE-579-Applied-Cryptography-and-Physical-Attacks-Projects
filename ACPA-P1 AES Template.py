@@ -77,8 +77,8 @@ def addRoundKey(state, roundKey):
 
 def subBytes(state):
         """Performs SubBytes operation on the state."""
-        for x in state:
-            x = sbox[x]
+        for i in range(len(state)):
+            state[i] = sbox[state[i]]
         # put your code here
 
         return state
@@ -87,6 +87,8 @@ def subBytes(state):
 def shiftRows(state):
         """Performs shiftRows operation on the state."""
         shifted_state = []
+        for x in range(len(state)):
+            shifted_state.append(0) #initial the shifted array
         for i in range(4):
             for j in range(4):
                 shifted_state[i+4*j] = state[(i+4*(j+i)) % 16]
@@ -97,14 +99,29 @@ def shiftRows(state):
 def mixColumns(state):
         """Performs mixColumns operation on the state."""
         mixed_state = []
+        for x in state:
+            mixed_state.append(0) #inital the result array
         for i in range(4):
-            mixed_state[i*4] = 2 * state[i*4] + 3 * state[i*4+1] + state[i*4+2] + state[i*4+3]
-            mixed_state[i*4+1] = state[i*4] + 2 * state[i*4+1] + 3 * state[i*4+2] + state[i*4+3]
-            mixed_state[i*4+2] = state[i*4] + state[i*4+1] + 2 * state[i*4+2] + 3 * state[i*4+3]
-            mixed_state[i*4+2] = 3 * state[i*4] + state[i*4+1] + state[i*4+2] + 2 * state[i*4+3]
+            mixed_state[i*4] = (GMul(2, state[i*4]) ^ GMul(3,state[i*4+1]) ^ state[i*4+2]  ^ state[i*4+3]) % 256
+            mixed_state[i*4+1] = (state[i*4] ^ GMul(2, state[i*4+1]) ^ GMul(3, state[i*4+2]) ^ state[i*4+3]) % 256
+            mixed_state[i*4+2] = (state[i*4] ^ state[i*4+1] ^ GMul(2, state[i*4+2]) ^ GMul(3, state[i*4+3])) % 256
+            mixed_state[i*4+2] = (GMul(3, state[i*4]) ^ state[i*4+1] ^ state[i*4+2] ^ GMul(2, state[i*4+3])) % 256
         # put your code here
 
         return mixed_state
+
+def GMul(a, b): #Galois Field (256) Multiplication of two Bytes
+    p = 0
+    for counter in range(8):
+        if (b & 1) != 0:
+            p = p ^ a
+        carry = a & 0x80 % 256
+        a =a << 1
+        if carry != 0:
+            a = a ^ 0x1b #/* x^8 + x^4 + x^3 + x + 1 */
+        b =b >> 1
+    return p
+
 
 def iSubBytes(state):
         """Performs inverse SubBytes operation on the state."""
@@ -138,13 +155,11 @@ def expandKey(key):
         """Expands the key using the appropriate key scheduling """
         roundKeys = [key]  #initial roundkeys
         for key_index in range(1, 11):
-            print roundKeys
             key_part = []
             prev_roundkey = roundKeys[key_index - 1]
             key_part.append (  bytearray_xor(key_g(prev_roundkey[12:16], key_index), prev_roundkey[0:4]))
             for i in range(1, 4):
                 key_part.append ( bytearray_xor(key_part[i-1] , prev_roundkey[i*4:(i+1)*4]))
-            
             roundKeys.append(concatenate_bytearray(key_part))
         # put your code here
 
@@ -152,17 +167,18 @@ def expandKey(key):
 
 def concatenate_bytearray(bytearray_list):
     rslt = bytearray()
-    print bytearray_list
     for b_a in bytearray_list:
-        print b_a
-        for one_byte in bytearray_list:
-            print one_byte
+        for one_byte in b_a:
             rslt.append(one_byte)
     return rslt
 
+def print_bytearray(ary):
+    for i in range(len(ary)):
+        print format(ary[i], '02x'),
+        if i%4==3: print
+    print
 
 def key_g(key, rc):
-    for i in key: print int(i)
     return bytearray([sbox[key[1]] ^ rc, sbox[key[2]], sbox[key[3]], sbox[key[0]]])
 
 def AES_encrypt(plaintext,key):
@@ -170,7 +186,17 @@ def AES_encrypt(plaintext,key):
 
         # init state
         state = bytearray(plaintext)
+        ''' Test Key Generate
         roundkeys = expandKey(key)
+        for key in roundkeys:
+            print_bytearray(key)
+        '''
+        state = addRoundKey(state, key)
+        state = subBytes(state)
+        state = shiftRows(state)
+        state = mixColumns(state)
+        print_bytearray(state)
+        
         exit()
             
         # put your code here
@@ -197,7 +223,6 @@ def AES_decrypt(ciphertext,key):
 # initializing sample inputs (see FIPS 197):
 pt  = bytearray.fromhex('32 43 f6 a8 88 5a 30 8d 31 31 98 a2 e0 37 07 34')
 key = bytearray.fromhex('2b 7e 15 16 28 ae d2 a6 ab f7 15 88 09 cf 4f 3c')
-
 ct  = bytearray.fromhex('39 25 84 1d 02 dc 09 fb dc 11 85 97 19 6a 0b 32')
 # print(hex(int.from_bytes(pt,'big')))
 
