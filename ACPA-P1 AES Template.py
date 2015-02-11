@@ -65,7 +65,7 @@ iSbox =[0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38,
         0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26,
         0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d]
 
-
+rc_table = [0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a]
 
 def addRoundKey(state, roundKey):
         """Adds (XORs) the round key to the state."""
@@ -79,8 +79,6 @@ def subBytes(state):
         """Performs SubBytes operation on the state."""
         for i in range(len(state)):
             state[i] = sbox[state[i]]
-        # put your code here
-
         return state
       
 
@@ -92,8 +90,6 @@ def shiftRows(state):
         for i in range(4):
             for j in range(4):
                 shifted_state[i+4*j] = state[(i+4*(j+i)) % 16]
-        # put your code here
-
         return shifted_state
 
 def mixColumns(state):
@@ -102,15 +98,14 @@ def mixColumns(state):
         for x in state:
             mixed_state.append(0) #inital the result array
         for i in range(4):
-            mixed_state[i*4] = (GMul(2, state[i*4]) ^ GMul(3,state[i*4+1]) ^ state[i*4+2]  ^ state[i*4+3]) % 256
-            mixed_state[i*4+1] = (state[i*4] ^ GMul(2, state[i*4+1]) ^ GMul(3, state[i*4+2]) ^ state[i*4+3]) % 256
-            mixed_state[i*4+2] = (state[i*4] ^ state[i*4+1] ^ GMul(2, state[i*4+2]) ^ GMul(3, state[i*4+3])) % 256
-            mixed_state[i*4+2] = (GMul(3, state[i*4]) ^ state[i*4+1] ^ state[i*4+2] ^ GMul(2, state[i*4+3])) % 256
-        # put your code here
-
+            mixed_state[i*4] = GMul(2, state[i*4]) ^ GMul(3,state[i*4+1]) ^ state[i*4+2]  ^ state[i*4+3]
+            mixed_state[i*4+1] = state[i*4] ^ GMul(2, state[i*4+1]) ^ GMul(3, state[i*4+2]) ^ state[i*4+3]
+            mixed_state[i*4+2] = state[i*4] ^ state[i*4+1] ^ GMul(2, state[i*4+2]) ^ GMul(3, state[i*4+3])
+            mixed_state[i*4+3] = GMul(3, state[i*4]) ^ state[i*4+1] ^ state[i*4+2] ^ GMul(2, state[i*4+3])
         return mixed_state
 
 def GMul(a, b): #Galois Field (256) Multiplication of two Bytes
+#reference : http://en.wikipedia.org/wiki/Finite_field_arithmetic
     p = 0
     for counter in range(8):
         if (b & 1) != 0:
@@ -120,100 +115,153 @@ def GMul(a, b): #Galois Field (256) Multiplication of two Bytes
         if carry != 0:
             a = a ^ 0x1b #/* x^8 + x^4 + x^3 + x + 1 */
         b =b >> 1
-    return p
+    return p%256
 
 
 def iSubBytes(state):
         """Performs inverse SubBytes operation on the state."""
-
-        # put your code here
-
+        for i in range(len(state)):
+            state[i] = iSbox[state[i]]
         return state
-      
 
 def iShiftRows(state):
         """Performs inverse shiftRows operation on the state."""
-
-        # put your code here
-
-        return state
+        shifted_state = []
+        for x in range(len(state)):
+            shifted_state.append(0) #initial the shifted array
+        for i in range(4):
+            for j in range(4):
+                shifted_state[i+4*j] = state[(i+4*(j-i)) % 16]
+        return shifted_state
 
 def iMixColumns(state):
         """Performs inverse mixColumns operation on the state."""
-
-        # put your code here
-
-        return state
-
+        mixed_state = []
+        for x in state:
+            mixed_state.append(0) #inital the result array
+        for i in range(4):
+            mixed_state[i*4] = GMul(14, state[i*4]) ^ GMul(11,state[i*4+1]) ^ GMul(13, state[i*4+2])  ^ GMul(9,state[i*4+3])
+            mixed_state[i*4+1] = GMul(9, state[i*4]) ^ GMul(14, state[i*4+1]) ^ GMul(11, state[i*4+2]) ^ GMul(13, state[i*4+3])
+            mixed_state[i*4+2] = GMul(13, state[i*4]) ^ GMul(9, state[i*4+1]) ^ GMul(14, state[i*4+2]) ^ GMul(11, state[i*4+3])
+            mixed_state[i*4+3] = GMul(11, state[i*4]) ^ GMul(13, state[i*4+1]) ^ GMul(9, state[i*4+2]) ^ GMul(14, state[i*4+3])
+        return mixed_state
 
 def bytearray_xor(a, b):
+    c = []
     for i in range(len(a)):
-        a[i] = a[i] ^ b[i]
-    return a
+        c.append(a[i] ^ b[i])
+    return c
 
 def expandKey(key):
         """Expands the key using the appropriate key scheduling """
         roundKeys = [key]  #initial roundkeys
-        for key_index in range(1, 11):
-            key_part = []
-            prev_roundkey = roundKeys[key_index - 1]
-            key_part.append (  bytearray_xor(key_g(prev_roundkey[12:16], key_index), prev_roundkey[0:4]))
+        for round_index in range(1, 11):
+            new_key_parts = []
+            prev_roundkey = roundKeys[round_index - 1]
+            new_key_parts.append (  bytearray_xor(key_g(prev_roundkey[12:16], round_index), prev_roundkey[0:4]))
+            #print "1st part of round %d :"%round_index,
+            #print_bytearray(new_key_parts[0])
             for i in range(1, 4):
-                key_part.append ( bytearray_xor(key_part[i-1] , prev_roundkey[i*4:(i+1)*4]))
-            roundKeys.append(concatenate_bytearray(key_part))
-        # put your code here
-
+                new_key_parts.append ( bytearray_xor(new_key_parts[i-1] , prev_roundkey[i*4:(i+1)*4]))
+                #print "%d part of round %d :" %(i,round_index),
+                #print_bytearray(new_key_parts[i])
+            roundKeys.append(concatenate_bytearray(new_key_parts))
+            #print "round key of %d round generated: "%round_index
+            #print_AES_block(roundKeys[round_index])
         return roundKeys
 
 def concatenate_bytearray(bytearray_list):
+    #print "##############Concatenate#################"
     rslt = bytearray()
-    for b_a in bytearray_list:
-        for one_byte in b_a:
-            rslt.append(one_byte)
+    for i in range(len(bytearray_list)):
+        #print_bytearray(bytearray_list[i])
+        for j in range(len(bytearray_list[i])):
+            rslt.append(bytearray_list[i][j])
+            #print "find {0:x}".format(bytearray_list[i][j])
+            #print "add to array: ",
+            #print_bytearray(rslt)
+    #print "############Concatenate end###############"
     return rslt
 
-def print_bytearray(ary):
-    for i in range(len(ary)):
-        print format(ary[i], '02x'),
-        if i%4==3: print
+def print_bytearray(ary): #for debug
+    for x in ary:
+        print "%02x"%x,
+    print 
+    
+def print_AES_block(blk): #for debug
+    for i in range(4):
+        for j in range(4):
+            print format(blk[i+4*j], '02x'),
+        print
     print
 
-def key_g(key, rc):
-    return bytearray([sbox[key[1]] ^ rc, sbox[key[2]], sbox[key[3]], sbox[key[0]]])
+def key_g(key, round_index):
+    #print "key_g input: ",
+    #print_bytearray(key)
+    rc = rc_table[round_index]
+    rslt = bytearray([sbox[key[1]] ^ rc, sbox[key[2]], sbox[key[3]], sbox[key[0]]])
+    #print "key_g result: ",
+    #print_bytearray(rslt) 
+    return rslt
 
 def AES_encrypt(plaintext,key):
         """Performs an encryption on the plaintext """
-
         # init state
         state = bytearray(plaintext)
-        ''' Test Key Generate
-        roundkeys = expandKey(key)
-        for key in roundkeys:
-            print_bytearray(key)
-        '''
-        state = addRoundKey(state, key)
+        roundkeys = expandKey(key) #get all the keys
+        state = addRoundKey(state, roundkeys[0]) #round 0
+        for key in roundkeys[1:-1]:#round 1 to 9
+            state = subBytes(state)
+            state = shiftRows(state)
+            state = mixColumns(state)
+            state = addRoundKey(state, key)
+            #print_AES_block(state)
+        #last round start
         state = subBytes(state)
+        #print_AES_block(state)
         state = shiftRows(state)
+        #print_AES_block(state)
+        state = addRoundKey(state, roundkeys[-1])
+        #end last round
+        #print_AES_block(state)
+        state = bytearray(state)
+        ''' Debug
+        print_AES_block(state)
+        state = addRoundKey(state, key)
+        print_AES_block(state)
+        state = subBytes(state)
+        print_AES_block(state)
+        state = shiftRows(state)
+        print_AES_block(state)
         state = mixColumns(state)
-        print_bytearray(state)
-        
+        print_AES_block(state)
+        print GMul(83, 202)
         exit()
-            
-        # put your code here
-
-        
+        '''    
         # return ciphertext
         return state
 
 def AES_decrypt(ciphertext,key):
         """Performs an decryption on the ciphertext """
-        
         # init state
         state = bytearray(ciphertext)
-
-        # put your code here
-
-        
+        roundkeys = expandKey(key)
+        #start first round
+        state = addRoundKey(state, roundkeys[-1])
+        state = iShiftRows(state)
+        state = iSubBytes(state)
+        #print_AES_block(state)
+        #end first round
+        for key in reversed(roundkeys[1:-1]):
+            state = addRoundKey(state, key)
+            state = iMixColumns(state)
+            state = iShiftRows(state)
+            state = iSubBytes(state)
+            #print_AES_block(state)
+        #last round
+        state = addRoundKey(state, roundkeys[0])
+        #print_AES_block(state)
+        state = bytearray(state)
         # return ciphertext
         return state
 
@@ -239,7 +287,12 @@ if pt==my_pt:
 else:
         print('Still some more error fixing needed')
                 
-
+#Problem 5(b)
+c = bytearray.fromhex('E5 5C D4 A8 EE E5 7D 26 1C 16 CA FE C9 40 A9 44')
+key = bytearray.fromhex("00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15")
+m = AES_decrypt(c, key)
+print "The AES Message is: "
+print_AES_block(m)
 
 
 

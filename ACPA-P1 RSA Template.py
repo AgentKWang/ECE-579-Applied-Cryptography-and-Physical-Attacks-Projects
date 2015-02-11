@@ -23,7 +23,7 @@ def xgcd(a,b):
         y, old_y = old_y - quotient * y, y
         a, b = b, r
     return (a,old_x,old_y)
-
+    # reference : http://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
 
 # Square and Multiply:
 def my_pow(b,e,m):
@@ -117,5 +117,11 @@ if m == 113105978850498163985455196799774334633787281997970960952432154479886841
     print('RSAdec seems to work')
 else:
     print('RSAdec: More debugging is needed') 
+    
+c = 31
+print "Calculate c=31 m=c^d mod N: \nm=",
+[N, e, d] = RSAkeyGen(p, q)
+m = RSAdec(c, d, N)
+print m
 
 # AES in separate file
