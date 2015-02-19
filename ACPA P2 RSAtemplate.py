@@ -55,10 +55,18 @@ def MGF(seed,maskLen):
     '''returns a mask of length maskLen, generated from seed using SHA-256'''
     import hashlib
     
-    T=bytearray()
-    
-    #put your code here
-    
+    rslt = ""
+    hLen = hashlib.sha256().digest_size
+    if maskLen > 2**32*hLen: #size check
+        print "mask too long"
+        exit()
+    for counter in range(0,-(-maskLen//hLen)):
+        C = bytearray(seed)
+        for i in range(4):
+            C.append(counter // 256**(3-i)) #generate C = mgfseed||C
+        rslt += hashlib.sha256(C).hexdigest()#T=T||Hash(mgfseed||C)
+    rslt = rslt[:maskLen*2]  #cut the string to match required length
+    T=bytearray().fromhex(rslt)
     return T
 
 
@@ -168,8 +176,7 @@ e = 2**16+1
 d = 95305639297136535129830247353885048571790931736897092024327830574503233416208940851818667509421055075611745557004095412620624213281032376171998990351263574092801357243118351700307075125243451771395731520183667695423762834718377372357353733379277776224241008883890378073612334038347526558549705139740335907073
 
 # Test MGF:
-'''
-print('Starting MGF Test: ',end = '')
+print('Starting MGF Test: ')
 seed = bytearray()
 for cnt in range(33):
     seed.append(cnt)
@@ -183,7 +190,7 @@ elif(check != correct):
 else:
     print('passed')
 
-
+'''
 # Test RSA Encryption and decryption:
 print('Starting first RSA Test: ',end = '')
 
