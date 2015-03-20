@@ -51,8 +51,11 @@ def LenstraAttack(m,sig_p,N,e):
     '''
     According to [Len96]
     gcd(c'^e-m, N) = q
+    Calculate gcd(c'^e-m, N) in practise:
+    According to Euclidean Algorithm 
+    gcd(c'^e-m, N) = gcd( (c'^e-m) mod N, N) = gcd( c'^e mod N - m, N)
     '''
-    q = xgcd(pow(sig_p, e) - m, N)[0]
+    q = xgcd(pow(sig_p, e, N) - m, N)[0]
     p = N / q
     return p,q
 
